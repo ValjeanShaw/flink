@@ -194,8 +194,7 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         return transform;
     }
 
-    protected void checkOrderKeys(RowType inputRowType) {
-    }
+    protected void checkOrderKeys(RowType inputRowType) {}
 
     private EventComparator<RowData> createEventComparator(
             ExecNodeConfig config, ClassLoader classLoader, RowType inputRowType) {
@@ -226,16 +225,32 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
                 new PatternVisitor(config, classLoader, relBuilder, inputRowType, matchSpec);
 
         final Pattern<RowData, RowData> cepPattern;
-        PatternWithStrategy resultPatternWithStrategy =
-                matchSpec.getPattern().accept(patternVisitor);
         if (matchSpec.getInterval().isPresent()) {
             Time interval = translateTimeBound(matchSpec.getInterval().get());
+            PatternWithStrategy resultPatternWithStrategy =
+                    matchSpec.getPattern().accept(patternVisitor);
             cepPattern = resultPatternWithStrategy.getPattern().within(interval);
+            checkPatternReasonableEnding(resultPatternWithStrategy);
         } else {
+            PatternWithStrategy resultPatternWithStrategy =
+                    matchSpec.getPattern().accept(patternVisitor);
             cepPattern = resultPatternWithStrategy.getPattern();
+            checkPatternReasonableEnding(resultPatternWithStrategy);
         }
-        resultPatternWithStrategy.checkPatternReasonableEnding();
         return new Tuple2<>(cepPattern, new ArrayList<>(patternVisitor.names));
+    }
+
+    private static void checkPatternReasonableEnding(PatternWithStrategy patternWithStrategy) {
+        if (patternWithStrategy == null) {
+            throw new TableException("This should not happen.");
+        }
+        Quantifier.ConsumingStrategy lastConsumingStrategy =
+                patternWithStrategy.getNextConsumingStrategy();
+        if (lastConsumingStrategy.equals(Quantifier.ConsumingStrategy.SKIP_TILL_NEXT)
+                || lastConsumingStrategy.equals(Quantifier.ConsumingStrategy.SKIP_TILL_ANY)) {
+            throw new TableException(
+                    "Currently, CEP doesn't support {- -} patterns at the ending.");
+        }
     }
 
     private static Time translateTimeBound(RexNode interval) {
@@ -279,7 +294,6 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
         public PatternWithStrategy visitLiteral(RexLiteral literal) {
             String patternName = literal.getValueAs(String.class);
             patternWithStrategy = translateSingleVariable(patternWithStrategy, patternName);
-
             RexNode patternDefinition = matchSpec.getPatternDefinitions().get(patternName);
             if (patternDefinition != null) {
                 MatchCodeGenerator generator =
@@ -528,15 +542,6 @@ public abstract class CommonExecMatch extends ExecNodeBase<RowData>
 
         public void setExcluded(boolean excluded) {
             isExcluded = excluded;
-        }
-
-        private void checkPatternReasonableEnding() {
-            Quantifier.ConsumingStrategy lastConsumingStrategy = this.getNextConsumingStrategy();
-            if (lastConsumingStrategy.equals(Quantifier.ConsumingStrategy.SKIP_TILL_NEXT)
-                    || lastConsumingStrategy.equals(Quantifier.ConsumingStrategy.SKIP_TILL_ANY)) {
-                throw new TableException(
-                        "Currently, CEP doesn't support {- -} patterns at the ending.");
-            }
         }
     }
 }
