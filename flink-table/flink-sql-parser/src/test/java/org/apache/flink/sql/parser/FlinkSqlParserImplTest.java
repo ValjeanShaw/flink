@@ -80,10 +80,10 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testCreateCatalog() {
         sql("create catalog c1\n"
-                        + " WITH (\n"
-                        + "  'key1'='value1',\n"
-                        + "  'key2'='value2'\n"
-                        + " )\n")
+                + " WITH (\n"
+                + "  'key1'='value1',\n"
+                + "  'key2'='value2'\n"
+                + " )\n")
                 .ok(
                         "CREATE CATALOG `C1` "
                                 + "WITH (\n"
@@ -363,9 +363,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + ")");
 
         sql("alter table default_catalog.default_database.t1 add (\n"
-                        + "watermark for ts as ts - interval '1' second,\n"
-                        + "^watermark^ for f1 as now()\n"
-                        + ")")
+                + "watermark for ts as ts - interval '1' second,\n"
+                + "^watermark^ for f1 as now()\n"
+                + ")")
                 .fails("Multiple WATERMARK statements is not supported yet.");
     }
 
@@ -444,9 +444,9 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + ")");
 
         sql("alter table default_catalog.default_database.t1 modify (\n"
-                        + "watermark for ts as ts - interval '1' second,\n"
-                        + "^watermark^ for f1 as now()\n"
-                        + ")")
+                + "watermark for ts as ts - interval '1' second,\n"
+                + "^watermark^ for f1 as now()\n"
+                + ")")
                 .fails("Multiple WATERMARK statements is not supported yet.");
     }
 
@@ -1252,7 +1252,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         + "(SELECT *\n"
                         + "FROM `EMPS`)";
         sql("insert into \"emps\" "
-                        + "partition (\"x\"='ab', \"y\"='bc')(\"x\",\"y\") select * from emps")
+                + "partition (\"x\"='ab', \"y\"='bc')(\"x\",\"y\") select * from emps")
                 .ok(expected);
     }
 
@@ -1270,12 +1270,12 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     void testInsertExtendedColumnAsStaticPartition2() {
         assertThatThrownBy(
-                        () ->
-                                sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
-                                        .node(
-                                                new ValidationMatcher()
-                                                        .fails(
-                                                                "Extended columns not allowed under the current SQL conformance level")))
+                () ->
+                        sql("insert into emps(x, y, z boolean) partition (z='ab') select * from emps")
+                                .node(
+                                        new ValidationMatcher()
+                                                .fails(
+                                                        "Extended columns not allowed under the current SQL conformance level")))
                 .isInstanceOf(SqlParseException.class);
     }
 
@@ -1745,7 +1745,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "FROM `T2`)");
 
         sql("compile plan './test.json' for statement set "
-                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
@@ -1758,7 +1758,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + ";\n"
                                 + "END");
         sql("compile plan './test.json' if not exists for statement set "
-                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE PLAN './test.json' IF NOT EXISTS FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
@@ -1781,7 +1781,7 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                                 + "FROM `T2`)");
 
         sql("compile and execute plan './test.json' for statement set "
-                        + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                + "begin insert into t1 select * from t2; insert into t2 select * from t3; end")
                 .ok(
                         "COMPILE AND EXECUTE PLAN './test.json' FOR STATEMENT SET BEGIN\n"
                                 + "INSERT INTO `T1`\n"
@@ -1948,6 +1948,18 @@ class FlinkSqlParserImplTest extends SqlParserTest {
                         new ValidationMatcher()
                                 .fails(
                                         "CREATE TABLE AS SELECT syntax does not support to create partitioned table yet."));
+    }
+
+    @Test
+    void testSelectList4() {
+        sql("select ^from^ emp").fails("(?s).*Encountered \"from emp\" at line .*");
+    }
+
+    @Test
+    void testMinusIsReserved() {
+        sql("select ^minus^ from t").fails("(?s).*Encountered \"minus from\" at .*");
+        sql("select ^minus^ select").fails("(?s).*Encountered \"minus select\" at .*");
+        sql("select * from t as ^minus^ where x < y").fails("(?s).*Encountered \"minus\" at .*");
     }
 
     public static BaseMatcher<SqlNode> validated(String validatedSql) {
